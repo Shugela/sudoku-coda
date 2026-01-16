@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df_brute = pd.read_csv("Backend/app/data/statistiques_sudoku.csv")
+df_brute = pd.read_csv("Backend/service/data/statistiques_sudoku.csv")
 df_ok = df_brute
 
 df_ok["datetime"] = pd.to_datetime(df_brute["datetime"],format='%Y-%m-%d %H:%M').dt.strftime('%Y-%m-%d')
