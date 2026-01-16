@@ -56,7 +56,10 @@
 
         .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         button { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Hint Button Fix: Disabled State */
+        button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; color: #666 !important; }
+        
         .btn-primary { background: var(--primary); color: white; }
         .btn-outline { background: white; border: 2px solid var(--primary); color: var(--primary); }
         .btn-active { background: var(--primary) !important; color: white !important; }
@@ -135,12 +138,20 @@
         let startTime = 0;
         let timerInterval;
         let totalGuesses = 0;
+        
+        // Hint Fix: Local state tracking
+        let hintsRemaining = 3;
 
         function startGame() {
             playerName = document.getElementById('player-name-input').value.trim();
             if (!playerName) return alert("Please enter a name!");
             document.getElementById('screen-start').classList.remove('active');
             document.getElementById('screen-game').classList.add('active');
+            
+            // Reset hints for a new game
+            hintsRemaining = 3;
+            updateHintUI(3);
+            
             initGame(1);
         }
 
@@ -158,11 +169,6 @@
             document.getElementById('mistakes-val').innerText = "0/3";
             document.getElementById('streak-val').innerText = streak;
             
-            // Reset Hint Button
-            const hintBtn = document.getElementById('hint-btn');
-            hintBtn.disabled = false;
-            hintBtn.innerText = "Hint (3 Left)";
-
             startTimer();
             renderGrid(data.grid);
         }
@@ -267,27 +273,49 @@
             }
         }
 
+        // Hint Button Fix: Logic
         async function getHint() {
             const hintBtn = document.getElementById('hint-btn');
-            const res = await fetch('/hint');
-            const data = await res.json();
             
-            if (data.error) {
-                alert(data.error);
-                hintBtn.disabled = true;
-                hintBtn.innerText = "No Hints Left";
-                return;
+            // Check if button is already disabled or no hints left
+            if (hintBtn.disabled || hintsRemaining <= 0) return;
+
+            try {
+                const res = await fetch('/hint');
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    updateHintUI(0);
+                    return;
+                }
+
+                // Update UI with hint value
+                const cellEl = document.querySelector(`.cell[data-r="${data.row}"][data-c="${data.col}"]`);
+                if (cellEl) {
+                    cellEl.innerText = data.value;
+                    cellEl.classList.add('fixed');
+                    cellEl.classList.remove('target', 'selected');
+                    cellEl.onclick = null;
+                }
+
+                // Decrement and Update Button
+                hintsRemaining = data.remaining;
+                updateHintUI(hintsRemaining);
+
+            } catch (err) {
+                console.error("Hint Error:", err);
             }
+        }
 
-            // Update UI with hint value
-            const cellEl = document.querySelector(`.cell[data-r="${data.row}"][data-c="${data.col}"]`);
-            cellEl.innerText = data.value;
-            cellEl.classList.add('fixed');
-            cellEl.onclick = null;
-
-            // Update button text and disable if limit reached
-            hintBtn.innerText = `Hint (${data.remaining} Left)`;
-            if (data.remaining <= 0) {
+        // Helper to update Hint Button Appearance
+        function updateHintUI(count) {
+            const hintBtn = document.getElementById('hint-btn');
+            if (count > 0) {
+                hintBtn.innerText = `Hint (${count} Left)`;
+                hintBtn.disabled = false;
+            } else {
+                hintBtn.innerText = "No More Hints";
                 hintBtn.disabled = true;
             }
         }
@@ -354,6 +382,5 @@
             }
         });
     </script>
-    <script src="/hint_api.js"></script>
 </body>
 </html>
