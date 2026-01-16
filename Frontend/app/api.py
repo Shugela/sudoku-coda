@@ -42,6 +42,10 @@ class FinalScore(BaseModel):
 async def get_index():
     return FileResponse(BASE_DIR / "index.html")
 
+@app.get("/hint_api.js")
+async def get_hint_script():
+    return FileResponse(BASE_DIR / "hint_api.js")
+
 @app.get("/start")
 async def start_game(level: int = 1):
     data = LevelGenerator.generate(level)
