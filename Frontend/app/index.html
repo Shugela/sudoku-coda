@@ -52,6 +52,7 @@
 
         .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         button { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-outline { background: white; border: 2px solid var(--primary); color: var(--primary); }
         .btn-active { background: var(--primary) !important; color: white !important; }
@@ -95,11 +96,10 @@
 
         <div class="controls">
             <button id="pencil-btn" class="btn-outline" onclick="togglePencil()">Pencil Mode: OFF (P)</button>
-            <button class="btn-hint" onclick="getHint()">Smart Hint (H)</button>
+            <button id="hint-btn" class="btn-hint" onclick="getHint()">Hint (3 Left)</button>
         </div>
         <p style="font-size: 12px; color: #999; margin-top: 15px; text-align: center;">
-            <b>Keyboard:</b> Arrows to move selection<br>
-            Numbers 1-9 to input • P for Pencil • H for Hint
+            <b>Keyboard:</b> Arrows to move • Numbers 1-9 to input • P for Pencil • H for Hint
         </p>
     </div>
 
@@ -152,6 +152,11 @@
             document.getElementById('mistakes-val').innerText = "0/3";
             document.getElementById('streak-val').innerText = streak;
             
+            // Reset Hint Button
+            const hintBtn = document.getElementById('hint-btn');
+            hintBtn.disabled = false;
+            hintBtn.innerText = "Hint (3 Left)";
+
             startTimer();
             renderGrid(data.grid);
         }
@@ -207,7 +212,6 @@
         function updatePencilUI(cellEl, r, c) {
             if (cellEl.classList.contains('fixed') || cellEl.innerText !== "") return;
             const marks = pencilMarks[r][c];
-            
             let html = '<div class="pencil-grid">';
             for (let i = 1; i <= 9; i++) {
                 html += `<div class="pencil-mark">${marks.has(i) ? i : ''}</div>`;
@@ -219,7 +223,6 @@
         async function handleInput(val) {
             if (!selectedCell) return;
             const { r, c, el } = selectedCell;
-
             if (pencilMode) {
                 if (pencilMarks[r][c].has(val)) pencilMarks[r][c].delete(val);
                 else pencilMarks[r][c].add(val);
@@ -237,7 +240,6 @@
                 body: JSON.stringify({ row: r, col: c, value: val, is_pencil: false })
             });
             const result = await response.json();
-            
             totalGuesses++;
             mistakes = result.mistakes;
             document.getElementById('mistakes-val').innerText = `${mistakes}/3`;
@@ -260,14 +262,28 @@
         }
 
         async function getHint() {
+            const hintBtn = document.getElementById('hint-btn');
             const res = await fetch('/hint');
             const data = await res.json();
-            if (data.error) return;
+            
+            if (data.error) {
+                alert(data.error);
+                hintBtn.disabled = true;
+                hintBtn.innerText = "No Hints Left";
+                return;
+            }
+
+            // Update UI with hint value
             const cellEl = document.querySelector(`.cell[data-r="${data.row}"][data-c="${data.col}"]`);
             cellEl.innerText = data.value;
             cellEl.classList.add('fixed');
-            cellEl.innerHTML = data.value;
             cellEl.onclick = null;
+
+            // Update button text and disable if limit reached
+            hintBtn.innerText = `Hint (${data.remaining} Left)`;
+            if (data.remaining <= 0) {
+                hintBtn.disabled = true;
+            }
         }
 
         async function viewLeaderboardOnly() {
@@ -278,7 +294,7 @@
                 document.getElementById('summary-title').innerText = "Top 5 Rankings";
                 document.getElementById('summary-info').innerText = "Global Hall of Fame";
                 displayLeaderboard(data);
-            } catch (err) { console.error(err); alert("Error loading leaderboard."); }
+            } catch (err) { alert("Error loading leaderboard."); }
         }
 
         async function endGame(won) {
@@ -303,23 +319,15 @@
         function displayLeaderboard(data) {
             const body = document.getElementById('leaderboard-body');
             body.innerHTML = '';
-            
-            // Flexibly handle different key names
             const list = data.top5 || data.top10 || (Array.isArray(data) ? data : []);
-            
             if (!list || list.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" style="padding:20px;">No scores yet. Start playing!</td></tr>';
+                body.innerHTML = '<tr><td colspan="5" style="padding:20px;">No scores yet!</td></tr>';
                 return;
             }
-
             list.forEach(s => {
                 const isMe = (s.name === playerName && playerName !== "");
                 body.innerHTML += `<tr class="${isMe ? 'highlight' : ''}">
-                    <td>${s.rank || '-'}</td>
-                    <td>${s.name}</td>
-                    <td>${s.level}</td>
-                    <td>${s.streak}</td>
-                    <td>${s.time}s</td>
+                    <td>${s.rank || '-'}</td><td>${s.name}</td><td>${s.level}</td><td>${s.streak}</td><td>${s.time}s</td>
                 </tr>`;
             });
         }

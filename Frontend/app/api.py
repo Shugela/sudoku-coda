@@ -27,7 +27,7 @@ class Move(BaseModel):
     row: int
     col: int
     value: int
-    is_pencil: bool = False # New: support for pencil marks in web
+    is_pencil: bool = False
 
 class FinalScore(BaseModel):
     name: str
@@ -35,8 +35,8 @@ class FinalScore(BaseModel):
     guesses: int
     mistakes: int
     completed: bool
-    time_taken: int  # New
-    streak: int      # New
+    time_taken: int
+    streak: int
 
 @app.get("/")
 async def get_index():
@@ -45,13 +45,14 @@ async def get_index():
 @app.get("/start")
 async def start_game(level: int = 1):
     data = LevelGenerator.generate(level)
-    game_id = "user_1" # In a real app, use a session ID
+    game_id = "user_1" 
     
     game_state[game_id] = {
         "puzzle": data["puzzle"],
         "solution": data["solution"],
         "target": data["target"],
-        "hints_pool": data["hints_available"], # Store hint pool
+        "hints_pool": data["hints_available"], 
+        "hints_used": 0,  # NEW: Initialize hint counter
         "mistakes": 0,
         "start_time": time.time()
     }
@@ -69,7 +70,6 @@ async def make_move(move: Move):
     if not state:
         raise HTTPException(status_code=400, detail="No game active")
     
-    # Logic for pencil marks doesn't need server validation for "correctness"
     if move.is_pencil:
         return {"status": "pencil_recorded"}
 
@@ -89,19 +89,36 @@ async def make_move(move: Move):
 
 @app.get("/hint")
 async def get_hint():
-    """Returns the value of a non-target empty cell to help the player."""
+    """Returns a hint if the player has not exceeded the 3-hint limit."""
     state = game_state.get("user_1")
-    if not state or not state["hints_pool"]:
-        return {"error": "No hints left"}
     
-    # Pop the first hint from the pool we generated in level_generator
+    if not state:
+        return {"error": "No game active"}
+
+    # NEW: Check if the player already used 3 hints
+    if state["hints_used"] >= 3:
+        return {"error": "Hint limit reached", "remaining": 0}
+    
+    # Check if there are any cells available to provide a hint for
+    if not state["hints_pool"]:
+        return {"error": "No more cells available for hints"}
+    
+    # Provide the hint
     hr, hc = state["hints_pool"].pop(0)
     val = state["solution"][hr][hc]
     
-    # Update the puzzle state so the server knows this cell is now filled
+    # Increment the counter
+    state["hints_used"] += 1
+    
+    # Update the puzzle state
     state["puzzle"][hr][hc] = val
     
-    return {"row": hr, "col": hc, "value": val}
+    return {
+        "row": hr, 
+        "col": hc, 
+        "value": val, 
+        "remaining": 3 - state["hints_used"] # Tell the frontend how many are left
+    }
 
 @app.post("/save-score")
 async def save_user_score(data: FinalScore):
@@ -114,5 +131,4 @@ async def save_user_score(data: FinalScore):
 
 @app.get("/leaderboard")
 async def get_leaderboard_standalone(name: str = None):
-    # This calls the function in leaderboard.py
     return leaderboard.get_smart_leaderboard(name)

@@ -1,9 +1,12 @@
 name,datetime,level,guesses,mistakes,completed,time,streak
 Alice,2026-01-16 09:00,16,1,0,True,45,5
-Bob,2026-01-16 09:15,16,1,0,True,62,5
+Bob,2026-01-16 09:15,15,1,5,True,62,5
 Charlie,2026-01-16 09:30,12,2,1,True,120,3
 SudokuMaster,2026-01-16 09:45,16,1,0,True,30,8
 Guest123,2026-01-16 10:00,5,10,3,False,300,0
 NoobPlayer,2026-01-16 10:05,2,4,3,False,85,0
 SpeedyGonzales,2026-01-16 10:10,12,1,0,True,40,3
-issam,2026-01-16 10:30,16,18,0,True,25,16isam,2026-01-16 10:39,6,10,3,False,7,5
+issam,2026-01-16 10:30,16,18,0,True,25,16
+isam,2026-01-16 10:39,6,10,3,False,7,5
+sa,2026-01-16 10:45,13,16,3,False,13,11
+asr,2026-01-16 10:52,10,12,3,False,10,9
