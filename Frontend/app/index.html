@@ -3,110 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sudoku Target Game</title>
+    <title>Sudoku Target Pro</title>
     <style>
         :root {
-            --cell-size: 55px;
-            --thick: 3px solid #000;
-            --thin: 1px solid #ccc;
-            --primary-blue: #0d6efd;
+            --cell-size: 60px;
+            --thick: 3px solid #333;
+            --thin: 1px solid #ddd;
+            --primary: #0d6efd;
+            --target-gold: #ffd700;
         }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f2f5; padding: 20px; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; background: #f8f9fa; margin: 0; padding: 20px; }
         
-        /* Screens */
-        .screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+        /* Layout */
+        .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
         .active { display: flex; }
 
-        /* Welcome Screen Styling */
-        .welcome-card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+        /* Stats Bar */
+        .game-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; background: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 12px; color: #666; text-transform: uppercase; }
+        .stat-value { font-size: 18px; font-weight: bold; display: block; }
+
+        /* Sudoku Grid */
+        .grid { display: grid; grid-template-columns: repeat(9, var(--cell-size)); border: var(--thick); background: white; user-select: none; }
+        .cell { 
+            width: var(--cell-size); height: var(--cell-size); border: var(--thin); 
+            box-sizing: border-box; position: relative; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+        }
         
-        /* Game Styling */
-        .stats { margin-bottom: 15px; font-size: 1.2rem; font-weight: bold; }
-        .grid { display: grid; grid-template-columns: repeat(9, var(--cell-size)); grid-template-rows: repeat(9, var(--cell-size)); border: var(--thick); background-color: #fff; }
-        .cell { width: var(--cell-size); height: var(--cell-size); border: var(--thin); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; }
-        
-        /* 3x3 Block Borders */
+        /* 3x3 Borders */
         .cell:nth-child(3n) { border-right: var(--thick); }
         .cell:nth-child(9n) { border-right: var(--thin); }
         .grid > div:nth-child(n+19):nth-child(-n+27), .grid > div:nth-child(n+46):nth-child(-n+54) { border-bottom: var(--thick); }
 
-        /* States */
-        .cell.target { background-color: #ffd700; font-weight: bold; }
-        .cell.fixed { background-color: #f8f9fa; cursor: default; color: #333; }
-        .cell.selected { background-color: #cfe2ff !important; outline: 2px solid var(--primary-blue); z-index: 5; }
+        /* Cell States */
+        .cell.fixed { background: #f1f3f5; color: #212529; font-weight: 600; cursor: default; }
+        .cell.selected { background: #e7f1ff !important; outline: 2px solid var(--primary); z-index: 2; }
+        .cell.target { background: #fff9db; box-shadow: inset 0 0 0 3px var(--target-gold); }
         .cell.wrong { color: #dc3545; animation: shake 0.2s; }
 
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-        button { padding: 10px 20px; cursor: pointer; background: var(--primary-blue); color: white; border: none; border-radius: 4px; font-weight: bold; }
-        
-        /* Leaderboard Modal */
-        #summary-screen {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 30px; border: 2px solid #000; z-index: 100; text-align: center;
-            box-shadow: 0 0 30px rgba(0,0,0,0.3); border-radius: 8px; width: 90%; max-width: 450px;
+        /* Pencil Marks Layout */
+        .pencil-grid { 
+            display: grid; grid-template-columns: repeat(3, 1fr); 
+            width: 100%; height: 100%; padding: 2px; box-sizing: border-box;
         }
-        table { width: 100%; margin: 15px 0; border-collapse: collapse; }
-        th, td { border: 1px solid #dee2e6; padding: 8px; text-align: center; }
-        .highlight { background-color: #fff3cd !important; font-weight: bold; }
+        .pencil-mark { font-size: 10px; color: #888; text-align: center; line-height: 18px; }
+
+        /* Controls */
+        .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-active { background: var(--primary) !important; color: white !important; }
+        .btn-hint { background: #6c757d; color: white; }
 
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+        /* Leaderboard Modal Styles */
+        #summary-screen {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 30px; border-radius: 12px; z-index: 100; text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 450px;
+        }
+        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
+        th { font-size: 12px; color: #666; padding: 10px; border-bottom: 2px solid #eee; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .highlight { background: #fff9db; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="screen-start" class="screen active">
-        <div class="welcome-card">
-            <h1>Sudoku Target Game</h1>
-            <p>Enter your name to begin the challenge</p>
-            <input type="text" id="player-name-input" placeholder="Your Name" style="width: 200px;">
-            <br><br>
-            <button onclick="startGame()">Start Game</button>
+        <h1>Sudoku Target</h1>
+        <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;">
+            <p>Enter your name to begin the streak</p>
+            <input type="text" id="player-name-input" placeholder="Name" style="padding: 10px; width: 80%; margin-bottom: 20px;">
+            <button class="btn-primary" onclick="startGame()">Start Game</button>
         </div>
     </div>
 
     <div id="screen-game" class="screen">
-        <h1>Sudoku Target Game</h1>
-        <div class="stats">
-            Level: <span id="level-val">1</span> | 
-            Mistakes: <span id="mistakes-val">0</span>/3
+        <div class="game-header">
+            <div class="stat-item"><span class="stat-label">Level</span><span id="level-val" class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">Streak</span><span id="streak-val" class="stat-value">0</span></div>
+            <div class="stat-item"><span class="stat-label">Mistakes</span><span id="mistakes-val" class="stat-value">0/3</span></div>
+            <div class="stat-item"><span class="stat-label">Time</span><span id="timer-val" class="stat-value">0s</span></div>
         </div>
 
         <div class="grid" id="sudoku-grid"></div>
 
-        <div id="message" style="margin-top:15px; font-weight:bold;">Click the golden cell and type 1-9</div>
-
         <div class="controls">
-            <input type="number" id="guess-input" min="1" max="9" style="width: 60px; text-align: center;">
-            <button onclick="submitMove()">Submit (Enter)</button>
+            <button id="pencil-btn" class="btn-outline" onclick="togglePencil()">Pencil: OFF (P)</button>
+            <button class="btn-hint" onclick="getHint()">Get Hint (H)</button>
+            <button class="btn-primary" onclick="submitMove()">Submit (Enter)</button>
         </div>
+        <p style="font-size: 12px; color: #666; margin-top: 15px;">Use Arrows to move • Numbers to input • P for Pencil • H for Hint</p>
     </div>
 
     <div id="summary-screen">
-        <h2 id="summary-title">Result</h2>
-        <p id="summary-stats"></p>
-        
-        <h3>Leaderboard</h3>
+        <h2 id="summary-title">Game Over</h2>
+        <div id="summary-stats"></div>
         <table>
-            <thead><tr><th>Rank</th><th>Name</th><th>Lvl</th><th>G</th><th>M</th></tr></thead>
+            <thead><tr><th>Rank</th><th>Name</th><th>Lvl</th><th>Strk</th><th>Time</th></tr></thead>
             <tbody id="leaderboard-body"></tbody>
         </table>
-        
-        <button onclick="location.reload()" style="background:#6c757d">Play Again</button>
+        <br>
+        <button class="btn-primary" onclick="location.reload()">Play Again</button>
     </div>
 
     <script>
         let playerName = "";
         let currentLevel = 1;
+        let streak = 0;
+        let mistakes = 0;
         let selectedCell = null;
         let targetCoords = [0, 0];
+        let pencilMode = false;
+        let pencilMarks = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+        
+        let startTime = 0;
+        let timerInterval;
         let totalGuesses = 0;
-        let totalMistakes = 0;
 
         function startGame() {
             playerName = document.getElementById('player-name-input').value;
-            if (!playerName) return alert("Please enter your name!");
+            if (!playerName) return alert("Enter your name!");
             document.getElementById('screen-start').classList.remove('active');
             document.getElementById('screen-game').classList.add('active');
             initGame(1);
@@ -115,11 +138,28 @@
         async function initGame(level) {
             const response = await fetch(`/start?level=${level}`);
             const data = await response.json();
+            
             currentLevel = data.level;
             targetCoords = data.target;
             selectedCell = null;
+            mistakes = 0;
+            pencilMarks = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+            
             document.getElementById('level-val').innerText = currentLevel;
+            document.getElementById('mistakes-val').innerText = "0/3";
+            document.getElementById('streak-val').innerText = streak;
+            
+            startTimer();
             renderGrid(data.grid);
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('timer-val').innerText = elapsed + "s";
+            }, 1000);
         }
 
         function renderGrid(grid) {
@@ -129,66 +169,121 @@
                 for (let c = 0; c < 9; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    
                     if (grid[r][c] !== 0) {
                         cell.innerText = grid[r][c];
                         cell.classList.add('fixed');
                     } else {
-                        cell.onclick = () => {
-                            document.querySelectorAll('.cell').forEach(el => el.classList.remove('selected'));
-                            cell.classList.add('selected');
-                            selectedCell = { el: cell, r, c };
-                            document.getElementById('guess-input').focus();
-                        };
+                        cell.onclick = () => selectCell(r, c);
                         if (r === targetCoords[0] && c === targetCoords[1]) cell.classList.add('target');
+                        updatePencilDisplay(cell, r, c);
                     }
                     gridEl.appendChild(cell);
                 }
             }
         }
 
-        async function submitMove() {
-            const val = document.getElementById('guess-input').value;
-            if (!selectedCell || !val) return;
+        function selectCell(r, c) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(el => el.classList.remove('selected'));
+            const target = Array.from(cells).find(el => el.dataset.r == r && el.dataset.c == c);
+            if (target && !target.classList.contains('fixed')) {
+                target.classList.add('selected');
+                selectedCell = { el: target, r, c };
+            }
+        }
 
+        function togglePencil() {
+            pencilMode = !pencilMode;
+            const btn = document.getElementById('pencil-btn');
+            btn.innerText = `Pencil: ${pencilMode ? 'ON' : 'OFF'} (P)`;
+            btn.classList.toggle('btn-active', pencilMode);
+        }
+
+        function updatePencilDisplay(cellEl, r, c) {
+            if (cellEl.classList.contains('fixed') || cellEl.innerText !== "") return;
+            const marks = pencilMarks[r][c];
+            if (marks.size === 0) { cellEl.innerHTML = ''; return; }
+            
+            let html = '<div class="pencil-grid">';
+            for (let i = 1; i <= 9; i++) {
+                html += `<div class="pencil-mark">${marks.has(i) ? i : ''}</div>`;
+            }
+            html += '</div>';
+            cellEl.innerHTML = html;
+        }
+
+        async function handleInput(val) {
+            if (!selectedCell) return;
+            const { r, c, el } = selectedCell;
+
+            if (pencilMode) {
+                if (pencilMarks[r][c].has(val)) pencilMarks[r][c].delete(val);
+                else pencilMarks[r][c].add(val);
+                updatePencilDisplay(el, r, c);
+            } else {
+                submitValue(val);
+            }
+        }
+
+        async function submitValue(val) {
+            const { r, c, el } = selectedCell;
             const response = await fetch('/move', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ row: selectedCell.r, col: selectedCell.c, value: parseInt(val) })
+                body: JSON.stringify({ row: r, col: c, value: val, is_pencil: false })
             });
             const result = await response.json();
             
             totalGuesses++;
-            document.getElementById('mistakes-val').innerText = result.mistakes;
+            document.getElementById('mistakes-val').innerText = `${result.mistakes}/3`;
 
             if (result.correct) {
-                selectedCell.el.innerText = val;
-                selectedCell.el.classList.add('fixed');
-                selectedCell.el.classList.remove('selected', 'target', 'wrong');
+                el.innerHTML = val;
+                el.classList.add('fixed');
+                el.classList.remove('selected', 'target', 'wrong');
                 if (result.success) {
+                    streak++;
                     if (currentLevel >= 16) endGame(true);
                     else setTimeout(() => initGame(currentLevel + 1), 1000);
                 }
                 selectedCell = null;
             } else {
-                totalMistakes++;
-                selectedCell.el.classList.add('wrong');
-                if (result.failed) endGame(false);
+                el.classList.add('wrong');
+                setTimeout(() => el.classList.remove('wrong'), 500);
+                if (result.failed) {
+                    streak = 0;
+                    endGame(false);
+                }
             }
-            document.getElementById('guess-input').value = '';
+        }
+
+        async function getHint() {
+            const res = await fetch('/hint');
+            const data = await res.json();
+            if (data.error) return;
+            
+            const cells = document.querySelectorAll('.cell');
+            const cellEl = Array.from(cells).find(el => el.dataset.r == data.row && el.dataset.c == data.col);
+            cellEl.innerText = data.value;
+            cellEl.classList.add('fixed');
+            cellEl.onclick = null;
         }
 
         async function endGame(won) {
+            clearInterval(timerInterval);
+            const timeTaken = Math.floor((Date.now() - startTime) / 1000);
             document.getElementById('summary-screen').style.display = 'block';
             document.getElementById('summary-title').innerText = won ? "Victory!" : "Game Over";
-            document.getElementById('summary-stats').innerText = `Total Guesses: ${totalGuesses} | Total Mistakes: ${totalMistakes}`;
-
-            // Save score
+            
             const res = await fetch('/save-score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: playerName, level: currentLevel, guesses: totalGuesses, 
-                    mistakes: totalMistakes, completed: won
+                    mistakes: mistakes, completed: won, time_taken: timeTaken, streak: streak
                 })
             });
             const boardData = await res.json();
@@ -198,26 +293,31 @@
         function displayLeaderboard(data) {
             const body = document.getElementById('leaderboard-body');
             body.innerHTML = '';
-            
-            // Render Top 5
             data.top5.forEach(s => {
-                const isCurrent = (s.name === playerName && s.rank <= 5);
-                body.innerHTML += `<tr class="${isCurrent ? 'highlight' : ''}">
-                    <td>${s.rank}</td><td>${s.name}</td><td>${s.level}</td><td>${s.guesses}</td><td>${s.mistakes}</td>
+                body.innerHTML += `<tr class="${s.name === playerName ? 'highlight' : ''}">
+                    <td>${s.rank}</td><td>${s.name}</td><td>${s.level}</td><td>${s.streak}</td><td>${s.time}s</td>
                 </tr>`;
             });
-
-            // If player is outside Top 5
-            if (data.player_row && data.player_row.rank > 5) {
-                body.innerHTML += `<tr><td colspan="5">...</td></tr>`;
-                const p = data.player_row;
-                body.innerHTML += `<tr class="highlight">
-                    <td>${p.rank}</td><td>${p.name}</td><td>${p.level}</td><td>${p.guesses}</td><td>${p.mistakes}</td>
-                </tr>`;
-            }
         }
 
-        document.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitMove(); });
+        // Keyboard Navigation & Input
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('screen-game').classList.contains('active')) {
+                if (e.key >= '1' && e.key <= '9') handleInput(parseInt(e.key));
+                if (e.key === 'p' || e.key === 'P') togglePencil();
+                if (e.key === 'h' || e.key === 'H') getHint();
+                
+                if (selectedCell) {
+                    let { r, c } = selectedCell;
+                    if (e.key === 'ArrowUp') selectCell(Math.max(0, r - 1), c);
+                    if (e.key === 'ArrowDown') selectCell(Math.min(8, r + 1), c);
+                    if (e.key === 'ArrowLeft') selectCell(r, Math.max(0, c - 1));
+                    if (e.key === 'ArrowRight') selectCell(r, Math.min(8, c + 1));
+                } else if (e.key.startsWith('Arrow')) {
+                    selectCell(0, 0);
+                }
+            }
+        });
     </script>
 </body>
 </html>
