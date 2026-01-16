@@ -15,15 +15,14 @@
 
         body { font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; background: #f8f9fa; margin: 0; padding: 20px; }
         
-        /* Layout */
         .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
         .active { display: flex; }
 
         /* Stats Bar */
         .game-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; background: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); box-sizing: border-box; }
         .stat-item { text-align: center; }
-        .stat-label { font-size: 12px; color: #666; text-transform: uppercase; }
-        .stat-value { font-size: 18px; font-weight: bold; display: block; }
+        .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 18px; font-weight: bold; display: block; color: #222; }
 
         /* Sudoku Grid */
         .grid { display: grid; grid-template-columns: repeat(9, var(--cell-size)); border: var(--thick); background: white; user-select: none; }
@@ -38,20 +37,19 @@
         .cell:nth-child(9n) { border-right: var(--thin); }
         .grid > div:nth-child(n+19):nth-child(-n+27), .grid > div:nth-child(n+46):nth-child(-n+54) { border-bottom: var(--thick); }
 
-        /* Cell States */
         .cell.fixed { background: #f1f3f5; color: #212529; font-weight: 600; cursor: default; }
         .cell.selected { background: #e7f1ff !important; outline: 2px solid var(--primary); z-index: 2; }
         .cell.target { background: #fff9db; box-shadow: inset 0 0 0 3px var(--target-gold); }
         .cell.wrong { color: #dc3545; animation: shake 0.2s; }
 
-        /* Pencil Marks Layout */
+        /* Multi-Pencil Marks Layout */
         .pencil-grid { 
             display: grid; grid-template-columns: repeat(3, 1fr); 
             width: 100%; height: 100%; padding: 2px; box-sizing: border-box;
+            pointer-events: none;
         }
-        .pencil-mark { font-size: 10px; color: #888; text-align: center; line-height: 18px; }
+        .pencil-mark { font-size: 10px; color: #888; text-align: center; line-height: 18px; height: 18px; }
 
-        /* Controls */
         .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         button { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
@@ -61,26 +59,27 @@
 
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
-        /* Leaderboard Modal Styles */
+        /* Modal / Summary */
         #summary-screen {
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; padding: 30px; border-radius: 12px; z-index: 100; text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 450px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 500px;
         }
         table { width: 100%; margin-top: 15px; border-collapse: collapse; }
-        th { font-size: 12px; color: #666; padding: 10px; border-bottom: 2px solid #eee; }
-        td { padding: 10px; border-bottom: 1px solid #eee; }
+        th { font-size: 11px; color: #666; padding: 10px; border-bottom: 2px solid #eee; text-transform: uppercase; }
+        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
         .highlight { background: #fff9db; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="screen-start" class="screen active">
-        <h1>Sudoku Target</h1>
-        <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;">
-            <p>Enter your name to begin the streak</p>
-            <input type="text" id="player-name-input" placeholder="Name" style="padding: 10px; width: 80%; margin-bottom: 20px;">
-            <button class="btn-primary" onclick="startGame()">Start Game</button>
+        <h1 style="color: #333; margin-bottom: 10px;">Sudoku Target</h1>
+        <p style="color: #666; margin-bottom: 30px;">Solve the target cell to advance your streak!</p>
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; width: 320px;">
+            <input type="text" id="player-name-input" placeholder="Enter Your Name" style="padding: 12px; width: 100%; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; outline: none;">
+            <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="startGame()">Start Game</button>
+            <button class="btn-outline" style="width: 100%;" onclick="viewLeaderboardOnly()">View Top 5</button>
         </div>
     </div>
 
@@ -95,22 +94,26 @@
         <div class="grid" id="sudoku-grid"></div>
 
         <div class="controls">
-            <button id="pencil-btn" class="btn-outline" onclick="togglePencil()">Pencil: OFF (P)</button>
-            <button class="btn-hint" onclick="getHint()">Get Hint (H)</button>
-            <button class="btn-primary" onclick="submitMove()">Submit (Enter)</button>
+            <button id="pencil-btn" class="btn-outline" onclick="togglePencil()">Pencil Mode: OFF (P)</button>
+            <button class="btn-hint" onclick="getHint()">Smart Hint (H)</button>
         </div>
-        <p style="font-size: 12px; color: #666; margin-top: 15px;">Use Arrows to move • Numbers to input • P for Pencil • H for Hint</p>
+        <p style="font-size: 12px; color: #999; margin-top: 15px; text-align: center;">
+            <b>Keyboard:</b> Arrows to move selection<br>
+            Numbers 1-9 to input • P for Pencil • H for Hint
+        </p>
     </div>
 
     <div id="summary-screen">
-        <h2 id="summary-title">Game Over</h2>
-        <div id="summary-stats"></div>
-        <table>
-            <thead><tr><th>Rank</th><th>Name</th><th>Lvl</th><th>Strk</th><th>Time</th></tr></thead>
-            <tbody id="leaderboard-body"></tbody>
-        </table>
+        <h2 id="summary-title" style="margin-top: 0;">Leaderboard</h2>
+        <div id="summary-info" style="margin-bottom: 15px; color: #555; font-weight: 500;"></div>
+        <div style="background: #fdfdfd; border-radius: 8px; border: 1px solid #eee; max-height: 300px; overflow-y: auto;">
+            <table>
+                <thead><tr><th>Rank</th><th>Name</th><th>Lvl</th><th>Strk</th><th>Time</th></tr></thead>
+                <tbody id="leaderboard-body"></tbody>
+            </table>
+        </div>
         <br>
-        <button class="btn-primary" onclick="location.reload()">Play Again</button>
+        <button class="btn-primary" onclick="location.reload()">Return to Menu</button>
     </div>
 
     <script>
@@ -128,8 +131,8 @@
         let totalGuesses = 0;
 
         function startGame() {
-            playerName = document.getElementById('player-name-input').value;
-            if (!playerName) return alert("Enter your name!");
+            playerName = document.getElementById('player-name-input').value.trim();
+            if (!playerName) return alert("Please enter a name!");
             document.getElementById('screen-start').classList.remove('active');
             document.getElementById('screen-game').classList.add('active');
             initGame(1);
@@ -178,7 +181,7 @@
                     } else {
                         cell.onclick = () => selectCell(r, c);
                         if (r === targetCoords[0] && c === targetCoords[1]) cell.classList.add('target');
-                        updatePencilDisplay(cell, r, c);
+                        updatePencilUI(cell, r, c);
                     }
                     gridEl.appendChild(cell);
                 }
@@ -186,9 +189,8 @@
         }
 
         function selectCell(r, c) {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(el => el.classList.remove('selected'));
-            const target = Array.from(cells).find(el => el.dataset.r == r && el.dataset.c == c);
+            document.querySelectorAll('.cell').forEach(el => el.classList.remove('selected'));
+            const target = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
             if (target && !target.classList.contains('fixed')) {
                 target.classList.add('selected');
                 selectedCell = { el: target, r, c };
@@ -198,14 +200,13 @@
         function togglePencil() {
             pencilMode = !pencilMode;
             const btn = document.getElementById('pencil-btn');
-            btn.innerText = `Pencil: ${pencilMode ? 'ON' : 'OFF'} (P)`;
+            btn.innerText = `Pencil Mode: ${pencilMode ? 'ON' : 'OFF'} (P)`;
             btn.classList.toggle('btn-active', pencilMode);
         }
 
-        function updatePencilDisplay(cellEl, r, c) {
+        function updatePencilUI(cellEl, r, c) {
             if (cellEl.classList.contains('fixed') || cellEl.innerText !== "") return;
             const marks = pencilMarks[r][c];
-            if (marks.size === 0) { cellEl.innerHTML = ''; return; }
             
             let html = '<div class="pencil-grid">';
             for (let i = 1; i <= 9; i++) {
@@ -222,7 +223,7 @@
             if (pencilMode) {
                 if (pencilMarks[r][c].has(val)) pencilMarks[r][c].delete(val);
                 else pencilMarks[r][c].add(val);
-                updatePencilDisplay(el, r, c);
+                updatePencilUI(el, r, c);
             } else {
                 submitValue(val);
             }
@@ -238,7 +239,8 @@
             const result = await response.json();
             
             totalGuesses++;
-            document.getElementById('mistakes-val').innerText = `${result.mistakes}/3`;
+            mistakes = result.mistakes;
+            document.getElementById('mistakes-val').innerText = `${mistakes}/3`;
 
             if (result.correct) {
                 el.innerHTML = val;
@@ -253,10 +255,7 @@
             } else {
                 el.classList.add('wrong');
                 setTimeout(() => el.classList.remove('wrong'), 500);
-                if (result.failed) {
-                    streak = 0;
-                    endGame(false);
-                }
+                if (result.failed) endGame(false);
             }
         }
 
@@ -264,12 +263,22 @@
             const res = await fetch('/hint');
             const data = await res.json();
             if (data.error) return;
-            
-            const cells = document.querySelectorAll('.cell');
-            const cellEl = Array.from(cells).find(el => el.dataset.r == data.row && el.dataset.c == data.col);
+            const cellEl = document.querySelector(`.cell[data-r="${data.row}"][data-c="${data.col}"]`);
             cellEl.innerText = data.value;
             cellEl.classList.add('fixed');
+            cellEl.innerHTML = data.value;
             cellEl.onclick = null;
+        }
+
+        async function viewLeaderboardOnly() {
+            try {
+                const res = await fetch('/leaderboard');
+                const data = await res.json();
+                document.getElementById('summary-screen').style.display = 'block';
+                document.getElementById('summary-title').innerText = "Top 5 Rankings";
+                document.getElementById('summary-info').innerText = "Global Hall of Fame";
+                displayLeaderboard(data);
+            } catch (err) { console.error(err); alert("Error loading leaderboard."); }
         }
 
         async function endGame(won) {
@@ -277,7 +286,8 @@
             const timeTaken = Math.floor((Date.now() - startTime) / 1000);
             document.getElementById('summary-screen').style.display = 'block';
             document.getElementById('summary-title').innerText = won ? "Victory!" : "Game Over";
-            
+            document.getElementById('summary-info').innerText = won ? `Streak completed at level ${currentLevel}!` : `Game ended at level ${currentLevel}`;
+
             const res = await fetch('/save-score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -293,14 +303,27 @@
         function displayLeaderboard(data) {
             const body = document.getElementById('leaderboard-body');
             body.innerHTML = '';
-            data.top5.forEach(s => {
-                body.innerHTML += `<tr class="${s.name === playerName ? 'highlight' : ''}">
-                    <td>${s.rank}</td><td>${s.name}</td><td>${s.level}</td><td>${s.streak}</td><td>${s.time}s</td>
+            
+            // Flexibly handle different key names
+            const list = data.top5 || data.top10 || (Array.isArray(data) ? data : []);
+            
+            if (!list || list.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" style="padding:20px;">No scores yet. Start playing!</td></tr>';
+                return;
+            }
+
+            list.forEach(s => {
+                const isMe = (s.name === playerName && playerName !== "");
+                body.innerHTML += `<tr class="${isMe ? 'highlight' : ''}">
+                    <td>${s.rank || '-'}</td>
+                    <td>${s.name}</td>
+                    <td>${s.level}</td>
+                    <td>${s.streak}</td>
+                    <td>${s.time}s</td>
                 </tr>`;
             });
         }
 
-        // Keyboard Navigation & Input
         window.addEventListener('keydown', (e) => {
             if (document.getElementById('screen-game').classList.contains('active')) {
                 if (e.key >= '1' && e.key <= '9') handleInput(parseInt(e.key));
@@ -313,8 +336,6 @@
                     if (e.key === 'ArrowDown') selectCell(Math.min(8, r + 1), c);
                     if (e.key === 'ArrowLeft') selectCell(r, Math.max(0, c - 1));
                     if (e.key === 'ArrowRight') selectCell(r, Math.min(8, c + 1));
-                } else if (e.key.startsWith('Arrow')) {
-                    selectCell(0, 0);
                 }
             }
         });

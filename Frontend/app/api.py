@@ -111,3 +111,8 @@ async def save_user_score(data: FinalScore):
         data.time_taken, data.streak
     )
     return leaderboard.get_smart_leaderboard(data.name)
+
+@app.get("/leaderboard")
+async def get_leaderboard_standalone(name: str = None):
+    # This calls the function in leaderboard.py
+    return leaderboard.get_smart_leaderboard(name)

@@ -1,2 +1,9 @@
-name,datetime,level_reached,total_guesses,total_mistakes,completed
-Issam,2026-01-13 11:36,16,31,11,True
+name,datetime,level,guesses,mistakes,completed,time,streak
+Alice,2026-01-16 09:00,16,1,0,True,45,5
+Bob,2026-01-16 09:15,16,1,0,True,62,5
+Charlie,2026-01-16 09:30,12,2,1,True,120,3
+SudokuMaster,2026-01-16 09:45,16,1,0,True,30,8
+Guest123,2026-01-16 10:00,5,10,3,False,300,0
+NoobPlayer,2026-01-16 10:05,2,4,3,False,85,0
+SpeedyGonzales,2026-01-16 10:10,12,1,0,True,40,3
+issam,2026-01-16 10:30,16,18,0,True,25,16isam,2026-01-16 10:39,6,10,3,False,7,5
