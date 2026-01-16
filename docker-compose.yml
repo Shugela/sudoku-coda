@@ -5,12 +5,20 @@ services:
       dockerfile: Backend/Dockerfile
     env_file:
       - .env
+    environment:
+      SUDOKU_DATA_DIR: /data
+    volumes:
+      - ./Backend/app/data:/data
     ports:
       - "${BACKEND_PORT:-8080}:8080"
   frontend:
     build:
       context: .
       dockerfile: Frontend/Dockerfile
+    environment:
+      SUDOKU_DATA_DIR: /data
+    volumes:
+      - ./Backend/app/data:/data
     ports:
       - "${FRONTEND_PORT:-8000}:8000"
     depends_on:

@@ -1,4 +1,5 @@
 import csv
+import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -7,7 +8,10 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "statistiques_sudoku.csv"
+DATA_DIR = Path(
+    os.getenv("SUDOKU_DATA_DIR", Path(__file__).resolve().parent.parent / "data")
+)
+DATA_FILE = DATA_DIR / "statistiques_sudoku.csv"
 
 
 def _safe_int(value, default=0):

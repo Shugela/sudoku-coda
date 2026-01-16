@@ -5,54 +5,135 @@ from datetime import datetime
 from collections import defaultdict
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-LEADERBOARD_FILE = DATA_DIR / "leaderboard.csv"
+REPO_ROOT = BASE_DIR.parent.parent
+DEFAULT_SHARED_DATA_DIR = REPO_ROOT / "Backend" / "app" / "data"
+FALLBACK_DATA_DIR = BASE_DIR / "data"
+
+ENV_DATA_DIR = os.getenv("SUDOKU_DATA_DIR")
+if ENV_DATA_DIR:
+    DATA_DIR = Path(ENV_DATA_DIR)
+else:
+    DATA_DIR = DEFAULT_SHARED_DATA_DIR if DEFAULT_SHARED_DATA_DIR.exists() else FALLBACK_DATA_DIR
+
+STATS_FILE = DATA_DIR / "statistiques_sudoku.csv"
+LEGACY_FILE = BASE_DIR / "data" / "leaderboard.csv"
+HEADER = ["name", "datetime", "level", "guesses", "mistakes", "completed", "time", "streak"]
+
+
+def _ensure_data_dir():
+    if not DATA_DIR.exists():
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+
+def _ensure_file(path):
+    _ensure_data_dir()
+    if not path.is_file():
+        with path.open(mode="w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(HEADER)
+        return
+
+    with open(path, "rb+") as f:
+        f.seek(0, os.SEEK_END)
+        if f.tell() > 0:
+            f.seek(-1, os.SEEK_END)
+            last_char = f.read(1)
+            if last_char != b"\n":
+                f.write(b"\n")
+
+
+def _normalize_row(row):
+    return {col: str(row.get(col, "")).strip() for col in HEADER}
+
+
+def _row_key(row):
+    normalized = _normalize_row(row)
+    return tuple(normalized[col] for col in HEADER)
+
+
+def _load_rows(path):
+    if not path.is_file():
+        return []
+
+    rows = []
+    with path.open(mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if not row:
+                continue
+            normalized = _normalize_row(row)
+            if not any(normalized.values()):
+                continue
+            rows.append(normalized)
+    return rows
+
+
+def _append_rows(path, rows):
+    if not rows:
+        return
+    _ensure_file(path)
+    with path.open(mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        for row in rows:
+            normalized = _normalize_row(row)
+            writer.writerow([normalized[col] for col in HEADER])
+
+
+def _dedupe_and_append(path, rows):
+    if not rows:
+        return
+    existing = _load_rows(path)
+    keys = set(_row_key(r) for r in existing)
+    new_rows = []
+    for row in rows:
+        key = _row_key(row)
+        if key in keys:
+            continue
+        keys.add(key)
+        new_rows.append(row)
+    _append_rows(path, new_rows)
+
+
+def _merge_legacy():
+    if not LEGACY_FILE.is_file():
+        return
+    legacy_rows = _load_rows(LEGACY_FILE)
+    _dedupe_and_append(STATS_FILE, legacy_rows)
 
 def save_score(name, level, guesses, mistakes, completed, time_taken, streak):
-    if not DATA_DIR.exists():
-        os.makedirs(DATA_DIR)
-        
-    file_exists = LEADERBOARD_FILE.is_file()
-    
-    # Check if we need to add a missing newline to the end of the file first
-    if file_exists:
-        with open(LEADERBOARD_FILE, 'rb+') as f:
-            f.seek(0, os.SEEK_END)
-            if f.tell() > 0:
-                f.seek(-1, os.SEEK_END)
-                last_char = f.read(1)
-                if last_char != b'\n':
-                    f.write(b'\n')
-
-    # Now append the new row safely
-    with LEADERBOARD_FILE.open(mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["name", "datetime", "level", "guesses", "mistakes", "completed", "time", "streak"])
-        
-        writer.writerow([name, datetime.now().strftime("%Y-%m-%d %H:%M"), level, guesses, mistakes, completed, time_taken, streak])
+    _merge_legacy()
+    row = {
+        "name": name,
+        "datetime": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "level": level,
+        "guesses": guesses,
+        "mistakes": mistakes,
+        "completed": completed,
+        "time": time_taken,
+        "streak": streak,
+    }
+    _dedupe_and_append(STATS_FILE, [row])
 
 def get_smart_leaderboard(current_player_name=None):
-    if not LEADERBOARD_FILE.is_file():
+    _merge_legacy()
+    if not STATS_FILE.is_file():
         return {"top5": [], "player_row": None}
     
     all_scores = []
     try:
-        with LEADERBOARD_FILE.open(mode='r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                try:
-                    all_scores.append({
-                        "name": str(row['name']).strip(),
-                        "level": int(row['level']),
-                        "guesses": int(row['guesses']),
-                        "mistakes": int(row['mistakes']),
-                        "time": int(row['time']),
-                        "streak": int(row['streak']),
-                        "completed": str(row['completed']).strip() == 'True'
-                    })
-                except (KeyError, ValueError):
-                    continue 
+        for row in _load_rows(STATS_FILE):
+            try:
+                all_scores.append({
+                    "name": str(row["name"]).strip(),
+                    "level": int(row["level"]),
+                    "guesses": int(row["guesses"]),
+                    "mistakes": int(row["mistakes"]),
+                    "time": int(row["time"]),
+                    "streak": int(row["streak"]),
+                    "completed": str(row["completed"]).strip() == "True",
+                })
+            except (KeyError, ValueError):
+                continue
     except Exception as e:
         print(f"Error reading CSV: {e}")
         return {"top5": [], "player_row": None}
@@ -84,7 +165,8 @@ def _parse_datetime(value):
 
 
 def get_stats():
-    if not LEADERBOARD_FILE.is_file():
+    _merge_legacy()
+    if not STATS_FILE.is_file():
         return {
             "total_games": 0,
             "completed_games": 0,
@@ -100,24 +182,22 @@ def get_stats():
         }
 
     rows = []
-    with LEADERBOARD_FILE.open(mode="r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            dt_raw = str(row.get("datetime", "")).strip()
-            dt = _parse_datetime(dt_raw)
-            rows.append(
-                {
-                    "name": str(row.get("name", "")).strip(),
-                    "datetime": dt_raw,
-                    "_dt": dt,
-                    "level": _safe_int(row.get("level")),
-                    "guesses": _safe_int(row.get("guesses")),
-                    "mistakes": _safe_int(row.get("mistakes")),
-                    "time": _safe_int(row.get("time")),
-                    "streak": _safe_int(row.get("streak")),
-                    "completed": str(row.get("completed", "")).strip() == "True",
-                }
-            )
+    for row in _load_rows(STATS_FILE):
+        dt_raw = str(row.get("datetime", "")).strip()
+        dt = _parse_datetime(dt_raw)
+        rows.append(
+            {
+                "name": str(row.get("name", "")).strip(),
+                "datetime": dt_raw,
+                "_dt": dt,
+                "level": _safe_int(row.get("level")),
+                "guesses": _safe_int(row.get("guesses")),
+                "mistakes": _safe_int(row.get("mistakes")),
+                "time": _safe_int(row.get("time")),
+                "streak": _safe_int(row.get("streak")),
+                "completed": str(row.get("completed", "")).strip() == "True",
+            }
+        )
 
     if not rows:
         return {
