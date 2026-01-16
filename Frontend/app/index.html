@@ -57,7 +57,6 @@
         .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         button { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         
-        /* Hint Button Fix: Disabled State */
         button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; color: #666 !important; }
         
         .btn-primary { background: var(--primary); color: white; }
@@ -133,25 +132,24 @@
         let selectedCell = null;
         let targetCoords = [0, 0];
         let pencilMode = false;
-        let pencilMarks = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+        let pencilMarks = []; // Will be initialized as 9x9 array of Sets
         
         let startTime = 0;
         let timerInterval;
         let totalGuesses = 0;
-        
-        // Hint Fix: Local state tracking
         let hintsRemaining = 3;
+
+        function initPencilData() {
+            pencilMarks = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+        }
 
         function startGame() {
             playerName = document.getElementById('player-name-input').value.trim();
             if (!playerName) return alert("Please enter a name!");
             document.getElementById('screen-start').classList.remove('active');
             document.getElementById('screen-game').classList.add('active');
-            
-            // Reset hints for a new game
             hintsRemaining = 3;
             updateHintUI(3);
-            
             initGame(1);
         }
 
@@ -163,7 +161,7 @@
             targetCoords = data.target;
             selectedCell = null;
             mistakes = 0;
-            pencilMarks = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+            initPencilData();
             
             document.getElementById('level-val').innerText = currentLevel;
             document.getElementById('mistakes-val').innerText = "0/3";
@@ -221,9 +219,20 @@
             btn.classList.toggle('btn-active', pencilMode);
         }
 
+        // Logic Update: Renders a 3x3 grid inside the cell for marks 1-9
         function updatePencilUI(cellEl, r, c) {
-            if (cellEl.classList.contains('fixed') || cellEl.innerText !== "") return;
+            if (cellEl.classList.contains('fixed')) return;
+            
+            // If the cell already has a large number (submitted but not 'fixed' yet by logic)
+            // we skip pencil marks. But usually, if cellEl.innerText is empty, show marks.
+            if (cellEl.innerText !== "" && !cellEl.querySelector('.pencil-grid')) return;
+
             const marks = pencilMarks[r][c];
+            if (marks.size === 0) {
+                cellEl.innerHTML = "";
+                return;
+            }
+
             let html = '<div class="pencil-grid">';
             for (let i = 1; i <= 9; i++) {
                 html += `<div class="pencil-mark">${marks.has(i) ? i : ''}</div>`;
@@ -235,11 +244,18 @@
         async function handleInput(val) {
             if (!selectedCell) return;
             const { r, c, el } = selectedCell;
+            
             if (pencilMode) {
-                if (pencilMarks[r][c].has(val)) pencilMarks[r][c].delete(val);
-                else pencilMarks[r][c].add(val);
+                // Multi-mark toggle logic
+                if (pencilMarks[r][c].has(val)) {
+                    pencilMarks[r][c].delete(val);
+                } else {
+                    pencilMarks[r][c].add(val);
+                }
                 updatePencilUI(el, r, c);
             } else {
+                // Clear pencil marks for this cell upon a real submission
+                pencilMarks[r][c].clear();
                 submitValue(val);
             }
         }
@@ -273,42 +289,31 @@
             }
         }
 
-        // Hint Button Fix: Logic
         async function getHint() {
             const hintBtn = document.getElementById('hint-btn');
-            
-            // Check if button is already disabled or no hints left
             if (hintBtn.disabled || hintsRemaining <= 0) return;
 
             try {
                 const res = await fetch('/hint');
                 const data = await res.json();
-                
                 if (data.error) {
                     alert(data.error);
                     updateHintUI(0);
                     return;
                 }
-
-                // Update UI with hint value
                 const cellEl = document.querySelector(`.cell[data-r="${data.row}"][data-c="${data.col}"]`);
                 if (cellEl) {
                     cellEl.innerText = data.value;
                     cellEl.classList.add('fixed');
                     cellEl.classList.remove('target', 'selected');
                     cellEl.onclick = null;
+                    pencilMarks[data.row][data.col].clear();
                 }
-
-                // Decrement and Update Button
                 hintsRemaining = data.remaining;
                 updateHintUI(hintsRemaining);
-
-            } catch (err) {
-                console.error("Hint Error:", err);
-            }
+            } catch (err) { console.error("Hint Error:", err); }
         }
 
-        // Helper to update Hint Button Appearance
         function updateHintUI(count) {
             const hintBtn = document.getElementById('hint-btn');
             if (count > 0) {
@@ -381,6 +386,8 @@
                 }
             }
         });
+
+        initPencilData(); // Initial load
     </script>
 </body>
 </html>
