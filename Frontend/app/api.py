@@ -42,6 +42,14 @@ class FinalScore(BaseModel):
 async def get_index():
     return FileResponse(BASE_DIR / "index.html")
 
+@app.get("/stats")
+async def get_stats_page():
+    return FileResponse(BASE_DIR / "stats.html")
+
+@app.get("/stats-data")
+async def get_stats_data():
+    return leaderboard.get_stats()
+
 @app.get("/hint_api.js")
 async def get_hint_script():
     return FileResponse(BASE_DIR / "hint_api.js")

@@ -1,9 +1,7 @@
-import requests
 from fastapi import APIRouter, HTTPException
 
-from app.ia.mistral_client import get_hint_for_cell
 from app.ia.schemas import SudokuHintRequest, SudokuHintResponse
-from app.ia.solver import select_random_empty_peer_cell
+from app.ia.solver import get_solution_value, select_random_empty_peer_cell
 
 router = APIRouter()
 
@@ -19,10 +17,8 @@ def hint(request: SudokuHintRequest) -> SudokuHintResponse:
 
     row, col = cell
     try:
-        value = get_hint_for_cell(request.grid, row, col, request.target)
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail="mistral api error") from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        value = get_solution_value(request.grid, row, col)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return SudokuHintResponse(row=row, col=col, value=value)

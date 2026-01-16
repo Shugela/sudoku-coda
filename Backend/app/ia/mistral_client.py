@@ -41,9 +41,11 @@ def get_hint_for_cell(
     )
 
     system_message = (
-        "You are a Sudoku assistant. Given a 9x9 grid with 0 or null for empty, "
-        "return ONLY JSON: {\"value\": <1-9>} for the requested hint cell. "
-        "Do not give the solution for the target cell."
+        "You are a Sudoku solver. The grid is a 9x9 Sudoku where 0 or null means empty. "
+        "Solve the puzzle using Sudoku rules, then return ONLY JSON with the value for hint_cell: "
+        "{\"value\": <1-9>}. "
+        "The hint_cell is NOT the target cell; never return the target cell value. "
+        "Do not guess and do not include any other text."
     )
     user_payload = {
         "grid": grid,
